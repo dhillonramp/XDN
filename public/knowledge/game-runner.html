@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数学探险小游戏 - 5题通关制</title>
+  <!-- Kids fonts and styling -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Fredoka"', '"Quicksand"', '"PingFang SC"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: "Fredoka", "Quicksand", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+    }
+    .bounce-hover:hover {
+      transform: scale(1.08) rotate(1.5deg);
+    }
+    .bounce-active:active {
+      transform: scale(0.95);
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(2deg); }
+    }
+    .floating-item {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.85); opacity: 0; }
+      80% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .pop-in {
+      animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
+    }
+    /* Heartbeat animation for success elements */
+    @keyframes pulse-gentle {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    .pulse-animation {
+      animation: float 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-[#E0F2F1] to-[#FFF9C4] min-h-screen p-4 flex flex-col items-center justify-between overflow-x-hidden">
+
+  <!-- Confetti/Bubble overlay elements container -->
+  <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden z-10"></div>
+
+  <!-- Top Progress Dashboard -->
+  <div class="w-full max-w-xl bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-md border-b-4 border-amber-200 flex items-center justify-between z-20">
+    <div class="flex items-center space-x-3">
+      <!-- Mascot profile -->
+      <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-3xl border-2 border-amber-300 floating-item">
+        🤖
+      </div>
+      <div>
+        <h1 id="game-title" class="text-base lg:text-lg font-black text-amber-800 leading-tight">数学知识点探险...</h1>
+        <p id="game-desc" class="text-[11px] text-amber-600/80 mt-0.5">连续答对 5 道题即可通关哟！</p>
+      </div>
+    </div>
+    
+    <!-- Starry Progress (5 Stars Required) -->
+    <div class="flex flex-col items-end">
+      <div class="flex space-x-1" id="star-bar">
+        <span class="text-gray-300 text-xl">☆</span>
+        <span class="text-gray-300 text-lg">☆</span>
+        <span class="text-gray-300 text-lg">☆</span>
+        <span class="text-gray-300 text-lg">☆</span>
+        <span class="text-gray-300 text-lg">☆</span>
+      </div>
+      <span class="text-[10px] text-amber-500 font-bold tracking-widest mt-1">
+        已点亮: <span id="star-count" class="font-bold">0</span>/5
+      </span>
+    </div>
+  </div>
+
+  <!-- Game Stage -->
+  <div id="game-stage" class="w-full max-w-xl bg-white rounded-3xl p-6 my-4 shadow-lg border-4 border-amber-100/60 flex-grow flex flex-col justify-center items-center relative z-10 pop-in min-h-[380px]">
+    <div id="stage-content" class="w-full flex flex-col items-center justify-center">
+      <!-- Loaded dynamically -->
+    </div>
+  </div>
+
+  <!-- Bottom Guide Board -->
+  <div class="w-full max-w-xl flex items-center justify-between px-2 z-10">
+    <div class="text-[10px] text-slate-500 font-mono bg-white/40 px-2 py-0.5 rounded-md">
+      关卡ID: <span id="game-id-tag">...</span>
+    </div>
+    <div class="flex space-x-2">
+      <button onclick="skipGame()" class="text-xs text-amber-600 hover:text-amber-800 font-medium underline px-2 py-1 bounce-hover bounce-active">
+        跳过此关
+      </button>
+      <button onclick="parentComplete()" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded-full shadow-sm border border-emerald-300 transition-all bounce-hover bounce-active">
+        我学完了 👍
+      </button>
+    </div>
+  </div>
+
+  <!-- 1. CORRECT FEEDBACK OVERLAY -->
+  <div id="feedback-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+    <div id="feedback-card" class="bg-white rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl border-4 border-emerald-300 flex flex-col items-center pop-in">
+      <div id="feedback-emoji" class="text-7xl mb-3 floating-item">🌟</div>
+      <h3 id="feedback-title" class="text-xl font-black text-emerald-700">真棒！答对啦！</h3>
+      <p id="feedback-message" class="text-slate-600 text-xs mt-2 mb-4">聪聪为你点亮了一颗小星星，再接再厉！</p>
+      <button onclick="nextRound()" class="w-full bg-emerald-400 hover:bg-emerald-500 text-white font-extrabold text-sm py-2.5 px-6 rounded-xl border-b-4 border-emerald-600 active:translate-y-0.5 active:border-b-0 transition-all bounce-hover bounce-active">
+        下一题大冒险 ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- 2. INCORRECT REMEDIAL MODAL (错题重做 & 举一反三) -->
+  <div id="remedy-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border-4 border-amber-300 flex flex-col items-center pop-in">
+      <div class="text-6xl mb-3">🧐</div>
+      <h3 class="text-lg font-black text-amber-700">哎呀，差一点点就答对啦！</h3>
+      
+      <!-- Remedial Helper explanation -->
+      <div class="bg-amber-50 rounded-2xl p-4 my-4 text-left border border-amber-200 w-full">
+        <span class="text-xs font-bold text-amber-900 block mb-1">💡 聪聪小讲堂：</span>
+        <p id="remedy-explanation" class="text-xs text-slate-600 leading-relaxed">
+          别担心！让我们一起来数一数。我们可以用小手指来指着每一个图案来数，或者试试看“凑十法”！
+        </p>
+      </div>
+
+      <div class="text-xs text-slate-400 font-bold mb-5">你要怎么挑战这一关呢？</div>
+
+      <div class="grid grid-cols-2 gap-3 w-full">
+        <!-- Retry button -->
+        <button onclick="retryCurrentQuestion()" class="bg-[#E8F5E9] hover:bg-green-100 text-green-800 font-black text-xs py-3 px-4 rounded-xl border-2 border-green-300 shadow-sm transition-all bounce-hover bounce-active">
+          💪 错题重做<br>
+          <span class="text-[9px] font-medium text-green-600/80">(重新挑战这道题)</span>
+        </button>
+        <!-- Try Similar button -->
+        <button onclick="analogyQuestion()" class="bg-[#FFFDE7] hover:bg-yellow-100 text-amber-800 font-black text-xs py-3 px-4 rounded-xl border-2 border-amber-300 shadow-sm transition-all bounce-hover bounce-active">
+          💡 举一反三<br>
+          <span class="text-[9px] font-medium text-amber-600/80">(换一首相似的新题)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. COMPLETION CONGRATULATIONS MODAL -->
+  <div id="success-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-amber-300 flex flex-col items-center pop-in">
+      <div class="text-8xl mb-4 floating-item">👑</div>
+      <h2 class="text-2xl font-black text-amber-800">冒险大通关！</h2>
+      <p class="text-slate-600 text-xs mt-2 mb-6">太棒了！你连续答对了 5 道数学题！已经成功点亮了这一颗关卡水晶 🌟！</p>
+      
+      <!-- Celebratory reward block -->
+      <div class="flex space-x-3 mb-6 bg-amber-50 px-4 py-2.5 rounded-2xl border border-amber-200">
+        <span class="text-sm font-bold text-amber-800">💮 喜得小红花 +1</span>
+        <span class="text-sm font-bold text-amber-800">✨ 智慧经验 +10</span>
+      </div>
+
+      <button onclick="notifyParentAndClose()" class="w-full bg-gradient-to-r from-orange-400 to-amber-500 text-white font-extrabold text-lg py-3 px-6 rounded-2xl shadow-md border-b-4 border-amber-700 transition-transform active:translate-y-1 active:border-b-0 bounce-hover bounce-active">
+        开心收下，继续前行！
+      </button>
+    </div>
+  </div>
+
+  <!-- AUDIO SYNTH & GAME CONSOLE ENGINE -->
+  <script>
+    // State management
+    let gameId = "1-1";
+    let gameType = "count";
+    let gameData = {};
+    
+    // Core requirements: at least 5 questions to pass
+    let score = 0;
+    const requiredScore = 5;
+    
+    let currentQuestion = {};
+    let savedBackupQuestion = null; // Used for "retry"
+    let isTransitioning = false;
+
+    const emojiDictionary = {
+      '🐿️': '小松鼠', '🐰': '小兔子', '🌻': '太阳花', '🎈': '气球', '🐒': '小猴子',
+      '🍑': '仙桃', '🍌': '香蕉', '🍎': '大苹果', '🐱': '小花猫', '🐼': '大熊猫',
+      '🦊': '小狐狸', '🐯': '小老虎', '🐠': '七彩鱼', '🦋': '蝴蝶', '🔟': '数字卡片',
+      '🐤': '小鸡', '🦢': '白天鹅', '🥢': '小棒', '🧮': '计数珠', '🍩': '甜甜圈', '🍬': '小糖果'
+    };
+
+    const shapeDictionary = {
+      'cuboid': { name: '长方体', icon: '📦', bg: 'from-amber-100 to-orange-200', desc: '长长方方的，有6个平平的面，不容易滚动。' },
+      'cube': { name: '正方体', icon: '🧊', bg: 'from-blue-100 to-sky-200', desc: '方方正正，每一个面都一模一样大。' },
+      'cylinder': { name: '圆柱', icon: '🥫', bg: 'from-green-100 to-teal-200', desc: '直直的，两头圆圆的，躺下来可以滚来滚去。' },
+      'sphere': { name: '球', icon: '🏀', bg: 'from-pink-100 to-rose-200', desc: '圆溜溜的，可以往所有的方向飞快滚动！' }
+    };
+
+    // Kid-friendly guiding hints for remedial "remedy-explanation" when failing
+    const hintTemplates = {
+      'count': '别着急，跟着聪聪一起用手指从1开始指着数：1、2、3...每一个图案只数一次哟！你一定会数对的！',
+      'compare': '我们可以数一数两边分别有几个。如果左边多，我们就用“大于号 >”；如果两边一样多，就是“等于号 =”！',
+      'split': '“分与合”就像是分果果。我们可以把总数画出来，左边分了几个，剩下的全部都是右边的啦！',
+      'shape': '长方体有长长的平平的面；正方体每一个面都一样大；圆柱像罐头可以滚；球是圆滚滚可以往所有方向滚！',
+      'math': '加法是把两部分合起来数一数；减法是把总数去掉飞走的或吃掉的。我们可以伸出小手指或者画小圆圈来算哦！',
+      'review': '终极冲关需要我们开动脑筋，如果遇到加法就把数字合起来，遇到减法就用大数减去小数，加油！'
+    };
+
+    // Synth Audio Engine
+    function playSound(type) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        if (type === 'correct') {
+          // Energetic happy chime
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+          osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1); // A5
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+          osc2.frequency.exponentialRampToValueAtTime(1046.50, ctx.currentTime + 0.1); // C6
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc1.connect(gain); osc2.connect(gain); gain.connect(ctx.destination);
+          osc1.start(); osc2.start();
+          osc1.stop(ctx.currentTime + 0.35); osc2.stop(ctx.currentTime + 0.35);
+        } else if (type === 'incorrect') {
+          // Cartoon falling sliding boing
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(261.63, ctx.currentTime); // C4
+          osc.frequency.linearRampToValueAtTime(120.00, ctx.currentTime + 0.25);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.28);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.28);
+        } else if (type === 'pop') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1000, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(); osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'win') {
+          // Grand fanfare
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+            gain.gain.setValueAtTime(0.08, ctx.currentTime + i * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.22);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.08);
+            osc.stop(ctx.currentTime + i * 0.08 + 0.24);
+          });
+        }
+      } catch (e) {
+        console.log("Audio contexts ignored under isolated iframe constraints.", e);
+      }
+    }
+
+    // Initialize the game
+    function init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      gameId = urlParams.get('id') || '1-1';
+      gameType = urlParams.get('type') || 'count';
+      
+      const rawData = urlParams.get('data');
+      if (rawData) {
+        try {
+          gameData = JSON.parse(decodeURIComponent(rawData));
+        } catch (e) {
+          gameData = {};
+        }
+      }
+
+      document.getElementById('game-id-tag').innerText = gameId;
+      document.getElementById('game-title').innerText = gameData.title || "数学探险之岛";
+      
+      score = 0;
+      updateStarProgress();
+      generateQuestion();
+    }
+
+    // Update starry checklist
+    function updateStarProgress() {
+      const container = document.getElementById('star-bar');
+      container.innerHTML = '';
+      for (let i = 0; i < requiredScore; i++) {
+        const star = document.createElement('span');
+        star.className = i < score ? "text-amber-400 text-2xl animate-bounce" : "text-gray-300 text-lg";
+        star.innerText = i < score ? "★" : "☆";
+        container.appendChild(star);
+      }
+      document.getElementById('star-count').innerText = score;
+    }
+
+    // Question generation logic router
+    function generateQuestion() {
+      isTransitioning = false;
+      const stage = document.getElementById('stage-content');
+      stage.innerHTML = ''; // Clear previous contents
+
+      // Save question structure for remediation back-up
+      if (gameType === 'count') {
+        generateCountQuestion(stage);
+      } else if (gameType === 'compare' || gameId.includes('compare') || gameId === '1-2') {
+        generateCompareQuestion(stage);
+      } else if (gameType === 'split' || gameId.includes('split')) {
+        generateSplitQuestion(stage);
+      } else if (gameType === 'shape') {
+        generateShapeQuestion(stage);
+      } else {
+        generateMathQuestion(stage);
+      }
+
+      // Back up copy of generated parameters to allow Exact Retry (错题重做)
+      savedBackupQuestion = JSON.parse(JSON.stringify(currentQuestion));
+    }
+
+    // 1. COUNTING GAME TEMPLATE (1~5 & 11~20 counting)
+    function generateCountQuestion(stage) {
+      document.getElementById('game-desc').innerText = "数一数卡片里共有多少个可爱的宝贝，再选择正确数字！";
+      
+      const min = gameData.range ? gameData.range[0] : 1;
+      const max = gameData.range ? gameData.range[1] : 5;
+      const targetNum = Math.floor(Math.random() * (max - min + 1)) + min;
+      
+      const emojis = gameData.items || ["🐿️", "🐰", "🌻", "🍎"];
+      const itemEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+      currentQuestion = {
+        type: 'count',
+        targetNum: targetNum,
+        itemEmoji: itemEmoji,
+        answer: targetNum,
+        min: min,
+        max: max
+      };
+
+      // HTML Render
+      const container = document.createElement('div');
+      container.className = "flex flex-col items-center justify-center w-full";
+
+      const grid = document.createElement('div');
+      grid.className = "flex flex-wrap items-center justify-center gap-4 bg-emerald-50/40 p-6 rounded-3xl min-h-[140px] w-full max-w-sm mb-6 border border-emerald-100 shadow-inner";
+      
+      for (let i = 0; i < targetNum; i++) {
+        const item = document.createElement('div');
+        item.className = "text-4xl filter drop-shadow-sm transform hover:scale-125 transition-all cursor-pointer active:scale-95 select-none";
+        item.innerText = itemEmoji;
+        item.onclick = () => {
+          playSound('pop');
+          item.classList.add('scale-150');
+          setTimeout(() => item.classList.remove('scale-150'), 150);
+        };
+        grid.appendChild(item);
+      }
+      container.appendChild(grid);
+
+      const label = document.createElement('div');
+      label.className = "text-base font-extrabold text-slate-700 mb-4 text-center";
+      label.innerHTML = `这里一共有几个 <span class="text-3xl">${itemEmoji}</span> ${emojiDictionary[itemEmoji] || ''} 呀？`;
+      container.appendChild(label);
+
+      // Render answers buttons
+      renderAnswerButtons(container, targetNum, min, max + 2);
+      stage.appendChild(container);
+    }
+
+    // 2. COMPARE GAME (比大小 & 第几)
+    function generateCompareQuestion(stage) {
+      document.getElementById('game-desc').innerText = "仔细看两边的方框，比一比哪边多，或者选出指定序号！";
+
+      const limit = gameId.includes('11') ? 20 : 5;
+      const numLeft = Math.floor(Math.random() * (limit - 2)) + 2;
+      let numRight = Math.floor(Math.random() * (limit - 1)) + 1;
+      
+      if (Math.random() < 0.3) {
+        numRight = numLeft;
+      }
+
+      const emojis = gameData.items || ["🐒", "🍑", "🍎", "🍌"];
+      const emojiLeft = emojis[0];
+      const emojiRight = emojis[Math.min(1, emojis.length - 1)];
+
+      let correctAnswer = "=";
+      if (numLeft > numRight) correctAnswer = ">";
+      if (numLeft < numRight) correctAnswer = "<";
+
+      currentQuestion = {
+        type: 'compare',
+        numLeft: numLeft,
+        numRight: numRight,
+        emojiLeft: emojiLeft,
+        emojiRight: emojiRight,
+        answer: correctAnswer
+      };
+
+      const container = document.createElement('div');
+      container.className = "flex flex-col items-center justify-center w-full";
+
+      const panelsRow = document.createElement('div');
+      panelsRow.className = "flex items-center justify-center gap-3 w-full mb-6";
+
+      // Left panel
+      const leftBox = document.createElement('div');
+      leftBox.className = "flex-1 aspect-square max-w-[130px] bg-green-50 rounded-2xl p-3 flex flex-wrap gap-2 items-center justify-center border border-green-200 shadow-sm";
+      for (let i = 0; i < numLeft; i++) {
+        const item = document.createElement('span');
+        item.className = "text-2xl filter drop-shadow-sm select-none";
+        item.innerText = emojiLeft;
+        leftBox.appendChild(item);
+      }
+
+      // Middle operator holder
+      const midBox = document.createElement('div');
+      midBox.className = "w-14 h-14 bg-amber-50 rounded-2xl border-4 border-dashed border-amber-300 flex items-center justify-center text-3xl font-extrabold text-amber-600 animate-pulse";
+      midBox.innerText = "?";
+
+      // Right Box
+      const rightBox = document.createElement('div');
+      rightBox.className = "flex-1 aspect-square max-w-[130px] bg-rose-50 rounded-2xl p-3 flex flex-wrap gap-2 items-center justify-center border border-rose-200 shadow-sm";
+      for (let i = 0; i < numRight; i++) {
+        const item = document.createElement('span');
+        item.className = "text-2xl filter drop-shadow-sm select-none";
+        item.innerText = emojiRight;
+        rightBox.appendChild(item);
+      }
+
+      panelsRow.appendChild(leftBox);
+      panelsRow.appendChild(midBox);
+      panelsRow.appendChild(rightBox);
+      container.appendChild(panelsRow);
+
+      // Quantities helper text
+      const quantities = document.createElement('div');
+      quantities.className = "text-xs font-bold text-slate-600 mb-6 flex justify-around w-full max-w-[300px]";
+      quantities.innerHTML = `<span class="bg-green-100 text-green-800 px-3 py-1 rounded-full">${numLeft} 只 ${emojiLeft}</span>` + 
+                             `<span class="bg-rose-100 text-rose-800 px-3 py-1 rounded-full">${numRight} 只 ${emojiRight}</span>`;
+      container.appendChild(quantities);
+
+      // Operator choices
+      const opsRow = document.createElement('div');
+      opsRow.className = "flex justify-center gap-4 w-full";
+      
+      [">", "=", "<"].forEach(op => {
+        const btn = document.createElement('button');
+        btn.className = "w-16 h-16 text-3xl font-extrabold bg-[#FFF9C4] hover:bg-yellow-200 text-amber-900 border-3 border-yellow-400 rounded-full flex items-center justify-center shadow-md transition-all bounce-hover bounce-active";
+        btn.innerText = op;
+        btn.onclick = () => checkAnswer(op);
+        opsRow.appendChild(btn);
+      });
+
+      container.appendChild(opsRow);
+      stage.appendChild(container);
+    }
+
+    // 3. SPLIT DIAGRAMS (分与合)
+    function generateSplitQuestion(stage) {
+      document.getElementById('game-desc').innerText = "数字分一分，合一合。快来看看问号里应该填什么数字？";
+
+      const total = gameData.total || (gameId.startsWith('2-') ? 8 : 5);
+      const numLeft = Math.floor(Math.random() * (total - 1)) + 1;
+      const targetNum = total - numLeft;
+
+      currentQuestion = {
+        type: 'split',
+        total: total,
+        numLeft: numLeft,
+        answer: targetNum
+      };
+
+      const container = document.createElement('div');
+      container.className = "flex flex-col items-center justify-center w-full";
+
+      const splitDiagram = document.createElement('div');
+      splitDiagram.className = "flex flex-col items-center justify-center relative w-full max-w-[260px] p-6 bg-amber-50/30 rounded-3xl border border-amber-200 mb-6";
+
+      // Top circle
+      const topBubble = document.createElement('div');
+      topBubble.className = "w-16 h-16 bg-[#FFE0B2] text-[#E65100] border-4 border-[#FFB74D] rounded-full text-3xl font-extrabold flex items-center justify-center shadow-md mb-8 relative z-10";
+      topBubble.innerText = total;
+      splitDiagram.appendChild(topBubble);
+
+      // Lines
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "absolute inset-0 w-full h-full pointer-events-none z-0");
+      svg.innerHTML = `
+        <line x1="50%" y1="25%" x2="25%" y2="65%" stroke="#FFB74D" stroke-width="4" stroke-dasharray="2,2"/>
+        <line x1="50%" y1="25%" x2="75%" y2="65%" stroke="#FFB74D" stroke-width="4" stroke-dasharray="2,2"/>
+      `;
+      splitDiagram.appendChild(svg);
+
+      // Bottom Row
+      const bottomRow = document.createElement('div');
+      bottomRow.className = "flex justify-between w-full px-4 relative z-10";
+
+      const leftSplit = document.createElement('div');
+      leftSplit.className = "w-14 h-14 bg-white text-slate-800 border-3 border-amber-300 rounded-full text-2xl font-bold flex items-center justify-center shadow-md";
+      leftSplit.innerText = numLeft;
+
+      const rightSplit = document.createElement('div');
+      rightSplit.className = "w-14 h-14 bg-amber-100 text-amber-700 border-4 border-dashed border-amber-400 rounded-full text-2xl font-bold flex items-center justify-center shadow-md animate-bounce";
+      rightSplit.innerText = "?";
+
+      bottomRow.appendChild(leftSplit);
+      bottomRow.appendChild(rightSplit);
+      splitDiagram.appendChild(bottomRow);
+      container.appendChild(splitDiagram);
+
+      const label = document.createElement('div');
+      label.className = "text-sm font-extrabold text-slate-700 mb-6 text-center";
+      label.innerHTML = `数字大冒险：<span class="text-3xl text-orange-500 font-extrabold">${total}</span> 可以分成 <span class="text-2xl text-amber-600 font-extrabold">${numLeft}</span> 和谁呀？`;
+      container.appendChild(label);
+
+      // Options
+      renderAnswerButtons(container, targetNum, 1, total);
+      stage.appendChild(container);
+    }
+
+    // 4. SHAPES matching
+    function generateShapeQuestion(stage) {
+      document.getElementById('game-desc').innerText = "长方体、正方体、圆柱、还是球？选择正确的立体图形名称！";
+
+      const shapes = gameData.shapes && gameData.shapes[0] !== 'all' ? gameData.shapes : ['cuboid', 'cube', 'cylinder', 'sphere'];
+      const targetShape = shapes[Math.floor(Math.random() * shapes.length)];
+      const targetMeta = shapeDictionary[targetShape];
+
+      currentQuestion = {
+        type: 'shape',
+        answer: targetMeta.name,
+        targetShape: targetShape
+      };
+
+      const container = document.createElement('div');
+      container.className = "flex flex-col items-center justify-center w-full";
+
+      const shapeBox = document.createElement('div');
+      shapeBox.className = `w-36 h-36 bg-gradient-to-br ${targetMeta.bg} rounded-3xl flex flex-col items-center justify-center shadow-inner mb-6 relative overflow-hidden border border-slate-200/20`;
+      
+      const icon = document.createElement('div');
+      icon.className = "text-7xl filter drop-shadow-md floating-item select-none";
+      icon.innerText = targetMeta.icon;
+      shapeBox.appendChild(icon);
+      container.appendChild(shapeBox);
+
+      const label = document.createElement('div');
+      label.className = "text-base font-extrabold text-slate-700 mb-2 text-center";
+      label.innerText = `这个漂亮的玩具是什么形状？`;
+      container.appendChild(label);
+
+      const clue = document.createElement('div');
+      clue.className = "text-xs text-slate-500 max-w-xs text-center leading-relaxed mb-6 bg-slate-50 p-2.5 rounded-xl border border-slate-100";
+      clue.innerText = `💡 宝贝别急，聪聪给你提示：${targetMeta.desc}`;
+      container.appendChild(clue);
+
+      // Choice buttons
+      const choicesGrid = document.createElement('div');
+      choicesGrid.className = "grid grid-cols-2 gap-3 w-full max-w-sm";
+
+      ['长方体', '正方体', '圆柱', '球'].forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = `py-3 px-4 text-base font-extrabold border-2 rounded-2xl shadow-md transition-all bounce-hover bounce-active ${
+          name === targetMeta.name ? "bg-amber-50 text-amber-800 border-amber-300" : "bg-white text-slate-700 border-slate-200"
+        }`;
+        btn.innerText = name;
+        btn.onclick = () => checkAnswer(name);
+        choicesGrid.appendChild(btn);
+      });
+
+      container.appendChild(choicesGrid);
+      stage.appendChild(container);
+    }
+
+    // 5. MATH (加减混合 & 20以内加减法)
+    function generateMathQuestion(stage) {
+      document.getElementById('game-desc').innerText = "口算能量大通关！仔细算一算，点击你的答案。";
+
+      let num1 = 0, num2 = 0, op = "+", answer = 0;
+      let explanation = "";
+
+      // Determine level math bounds
+      if (gameId.startsWith('1-5') || gameId === '1-5') {
+        num1 = Math.floor(Math.random() * 4) + 1;
+        num2 = Math.floor(Math.random() * (5 - num1)) + 1;
+        op = "+";
+        answer = num1 + num2;
+        explanation = `加法是把两边的宝贝放在一起数。左边有 ${num1} 个，右边有 ${num2} 个，放在一起数，一共有 ${answer} 个！`;
+      } else if (gameId.startsWith('1-6') || gameId === '1-6') {
+        num1 = Math.floor(Math.random() * 4) + 2; // 2 ~ 5
+        num2 = Math.floor(Math.random() * (num1 - 1)) + 1; // 1 ~ (num1-1)
+        op = "-";
+        answer = num1 - num2;
+        explanation = `减法是拿走或者划掉。原来有 ${num1} 个，拿走 ${num2} 个，剩下的就是 ${answer} 个！`;
+      } else if (gameId === '1-7') {
+        if (Math.random() > 0.5) {
+          num1 = Math.floor(Math.random() * 5); num2 = 0; op = Math.random() > 0.5 ? "+" : "-"; answer = num1;
+        } else {
+          num1 = 0; num2 = Math.floor(Math.random() * 5); op = "+"; answer = num2;
+        }
+        explanation = `0 代表“一个也没有”。加上0或者减去0，原来的数量完全不会发生变化哟！`;
+      } else if (gameId === '5-1') {
+        num1 = 9;
+        num2 = Math.floor(Math.random() * 8) + 2; // 2~9
+        op = "+";
+        answer = num1 + num2;
+        explanation = `我们可以用“凑十法”！把 ${num2} 分成 1 和 ${num2 - 1}。9 + 1 凑成 10，10 加上剩下的 ${num2 - 1} 就是 ${answer}！`;
+      } else if (gameId === '5-2') {
+        num1 = [8, 7, 6][Math.floor(Math.random() * 3)];
+        num2 = Math.floor(Math.random() * 6) + 4; // 4~9
+        op = "+";
+        answer = num1 + num2;
+        const carry = 10 - num1;
+        explanation = `凑十法真好用！要把 ${num1} 凑成 10，需要从 ${num2} 里面借走 ${carry}。剩下 ${num2 - carry}，所以答案是 10 + ${num2 - carry} = ${answer}！`;
+      } else if (gameId === '5-3') {
+        num1 = [5, 4, 3, 2][Math.floor(Math.random() * 4)];
+        num2 = Math.floor(Math.random() * 4) + 7; // 7~10
+        op = "+";
+        answer = num1 + num2;
+        explanation = `小数加大数，交换想一想！计算 ${num1} + ${num2} 时，可以想成 ${num2} + ${num1}，把大数记在脑瓜里往上数，很快就能得到 ${answer}！`;
+      } else if (gameId.startsWith('2-')) {
+        // 6 ~ 10 bounds
+        op = Math.random() > 0.5 ? "+" : "-";
+        if (op === "+") {
+          num1 = Math.floor(Math.random() * 6) + 2; // 2~7
+          num2 = Math.floor(Math.random() * (10 - num1)) + 1;
+          answer = num1 + num2;
+          explanation = `加法是把两堆合起来。左边有 ${num1} 个，右边有 ${num2} 个，全部加起来一共是 ${answer} 个！`;
+        } else {
+          num1 = Math.floor(Math.random() * 5) + 6; // 6~10
+          num2 = Math.floor(Math.random() * (num1 - 2)) + 1;
+          answer = num1 - num2;
+          explanation = `减法是在大数里面拿走一部分。从 ${num1} 里面去掉 ${num2} 个，剩下的正好就是 ${answer} 个！`;
+        }
+      } else {
+        // default 11~20 calculation or review bounds
+        op = Math.random() > 0.5 ? "+" : "-";
+        if (op === "+") {
+          num1 = Math.floor(Math.random() * 5) + 11; // 11~15
+          num2 = Math.floor(Math.random() * (20 - num1)) + 1;
+          answer = num1 + num2;
+          explanation = `计算十几加几，我们可以把十位上的“1个十”先收起来，先算个位：${num1 - 10} + ${num2} = ${num1 - 10 + num2}。最后合起来就是 ${answer}！`;
+        } else {
+          num1 = Math.floor(Math.random() * 8) + 12; // 12~19
+          num2 = Math.floor(Math.random() * (num1 - 10)) + 1;
+          answer = num1 - num2;
+          explanation = `计算十几减去几：我们可以先把十位收起，先用个位数做减法：${num1 - 10} - ${num2} = ${num1 - 10 - num2}。加上十位上的10，合起来就是 ${answer}！`;
+        }
+      }
+
+      currentQuestion = {
+        type: 'math',
+        num1: num1,
+        num2: num2,
+        op: op,
+        answer: answer,
+        explanation: explanation
+      };
+
+      const container = document.createElement('div');
+      container.className = "flex flex-col items-center justify-center w-full";
+
+      // Display icons for math equation representation
+      const graphics = document.createElement('div');
+      graphics.className = "flex flex-wrap items-center justify-center gap-6 mb-6 p-4 bg-yellow-50/50 rounded-2xl border border-yellow-100/50 w-full max-w-sm";
+
+      const leftGroup = document.createElement('div');
+      leftGroup.className = "flex flex-wrap gap-1 items-center justify-center max-w-[120px]";
+      const emojis = ["🍬", "🍏", "🍓", "🍊", "⭐", "🍦"];
+      const mathEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+      for (let i = 0; i < (num1 > 10 ? num1 - 10 : num1); i++) {
+        const span = document.createElement('span');
+        span.className = "text-xl filter drop-shadow-sm";
+        span.innerText = mathEmoji;
+        leftGroup.appendChild(span);
+      }
+      if (num1 > 10) {
+        const bag = document.createElement('div');
+        bag.className = "bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-lg text-xs font-bold text-amber-800 flex items-center";
+        bag.innerHTML = `🎁 10个 + `;
+        leftGroup.insertBefore(bag, leftGroup.firstChild);
+      }
+
+      const rightGroup = document.createElement('div');
+      rightGroup.className = "flex flex-wrap gap-1 items-center justify-center max-w-[120px]";
+      for (let i = 0; i < num2; i++) {
+        const span = document.createElement('span');
+        span.className = "text-xl filter drop-shadow-sm";
+        span.innerText = mathEmoji;
+        rightGroup.appendChild(span);
+      }
+
+      graphics.appendChild(leftGroup);
+      
+      const opSign = document.createElement('div');
+      opSign.className = "text-2xl font-black text-amber-500";
+      opSign.innerText = op;
+      graphics.appendChild(opSign);
+
+      graphics.appendChild(rightGroup);
+      container.appendChild(graphics);
+
+      // Formula text with dashed mystery box
+      const formula = document.createElement('div');
+      formula.className = "text-3xl lg:text-4xl font-extrabold text-[#E65100] tracking-wider mb-6 select-none flex items-center gap-2";
+      formula.innerHTML = `<span>${num1}</span> <span>${op}</span> <span>${num2}</span> <span>=</span> <span class="w-12 h-14 bg-amber-50 border-4 border-dashed border-amber-300 rounded-xl text-3xl font-extrabold text-amber-600 flex items-center justify-center select-none animate-pulse">?</span>`;
+      container.appendChild(formula);
+
+      // Options grid
+      const selectionRow = document.createElement('div');
+      selectionRow.className = "grid grid-cols-2 gap-3 w-full max-w-sm";
+
+      const ansOptions = [answer];
+      while (ansOptions.length < 4) {
+        const offset = Math.floor(Math.random() * 4) + 1;
+        const fake = answer + (Math.random() > 0.5 ? offset : -offset);
+        if (fake >= 0 && fake <= 25 && !ansOptions.includes(fake)) {
+          ansOptions.push(fake);
+        }
+      }
+      ansOptions.sort((a, b) => a - b);
+
+      ansOptions.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = "py-3 px-6 text-2xl font-bold bg-[#E8F5E9] hover:bg-green-200 text-green-800 border-3 border-green-300 rounded-2xl shadow-md transition-all bounce-hover bounce-active";
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(opt);
+        answersGrid = btn; // keep reference for options logic
+        selectionRow.appendChild(btn);
+      });
+
+      container.appendChild(selectionRow);
+      stage.appendChild(container);
+    }
+
+    // Help render answer buttons for count & split
+    function renderAnswerButtons(container, correctAnswer, minVal, maxVal) {
+      const row = document.createElement('div');
+      row.className = "flex flex-wrap justify-center gap-3 w-full";
+
+      const options = [correctAnswer];
+      while (options.length < 4) {
+        const offset = Math.floor(Math.random() * 4) + 1;
+        const fake = correctAnswer + (Math.random() > 0.5 ? offset : -offset);
+        if (fake >= minVal && fake <= maxVal && !options.includes(fake)) {
+          options.push(fake);
+        }
+      }
+      options.sort((a, b) => a - b);
+
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = "w-14 h-14 text-2xl font-bold bg-[#E3F2FD] hover:bg-sky-200 text-sky-800 border-3 border-sky-300 rounded-2xl flex items-center justify-center shadow-md transition-all bounce-hover bounce-active";
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(opt);
+        row.appendChild(btn);
+      });
+      container.appendChild(row);
+    }
+
+    // CHECK USER INPUTS
+    function checkAnswer(userAns) {
+      if (isTransitioning) return;
+      isTransitioning = true;
+
+      const stage = document.getElementById('game-stage');
+
+      if (userAns === currentQuestion.answer) {
+        // CORRECT PATHWAY
+        playSound('correct');
+        score++;
+        updateStarProgress();
+
+        // Screen border flashes green
+        stage.classList.add('border-green-400');
+        
+        // Show correct modal panel
+        const happyEmojis = ["🎉", "🦄", "🌈", "🍭", "🍀", "🍩", "🌸"];
+        document.getElementById('feedback-emoji').innerText = happyEmojis[Math.floor(Math.random() * happyEmojis.length)];
+        
+        const encourageTitles = ["真棒！答对啦！", "你太聪明了！", "小天才诞生了！", "算得飞快！", "超级优秀！"];
+        document.getElementById('feedback-title').innerText = encourageTitles[Math.floor(Math.random() * encourageTitles.length)];
+        
+        document.getElementById('feedback-message').innerText = `聪聪为你点亮了第 ${score} 颗亮晶晶的小行星！继续前进！`;
+        
+        document.getElementById('feedback-modal').classList.remove('hidden');
+
+        setTimeout(() => {
+          stage.classList.remove('border-green-400');
+        }, 600);
+
+      } else {
+        // INCORRECT PATHWAY: RECORD MISTAKE, NOTIFY PARENT & AUTO NEXT (Smooth Experience)
+        playSound('incorrect');
+        stage.classList.add('animate-shake', 'border-rose-400');
+        setTimeout(() => {
+          stage.classList.remove('animate-shake', 'border-rose-400');
+        }, 400);
+
+        // Calculate clear question text and explanation for Mistakes Bank
+        let questionText = "";
+        let explanation = currentQuestion.explanation || hintTemplates[gameType] || "让我们再看一次哦，别心急！";
+
+        if (currentQuestion.type === 'count') {
+          questionText = `数数大挑战：这里有几个 ${currentQuestion.itemEmoji}？`;
+          explanation = `跟着聪聪用手指从1开始，每一个 ${currentQuestion.itemEmoji} 只数一次哦：1、2、3... 正确答案是：${currentQuestion.answer} 个。`;
+        } else if (currentQuestion.type === 'compare') {
+          questionText = `比大小：${currentQuestion.numLeft}个 ${currentQuestion.emojiLeft} 比 ${currentQuestion.numRight}个 ${currentQuestion.emojiRight}`;
+          explanation = `${currentQuestion.numLeft}个 ${currentQuestion.emojiLeft} 比 ${currentQuestion.numRight}个 ${currentQuestion.emojiRight} ${currentQuestion.answer === '>' ? '多' : (currentQuestion.answer === '<' ? '少' : '一样多')}，所以应该填“${currentQuestion.answer}”哦！`;
+        } else if (currentQuestion.type === 'split') {
+          questionText = `数字分与合：${currentQuestion.total} 可以分成 ${currentQuestion.numLeft} 和几？`;
+          explanation = `${currentQuestion.total} 可以分成 ${currentQuestion.numLeft} 和 ${currentQuestion.answer}，它们加起来刚好是 ${currentQuestion.total} 哟！`;
+        } else if (currentQuestion.type === 'shape') {
+          const targetMeta = shapeDictionary[currentQuestion.targetShape] || { name: currentQuestion.answer, icon: '📦', desc: '' };
+          questionText = `立体图形：${targetMeta.icon} 是什么形状？`;
+          explanation = `这个漂亮的玩具是【${targetMeta.name}】！特征：${targetMeta.desc}`;
+        } else if (currentQuestion.type === 'math') {
+          questionText = `口算闯关：${currentQuestion.num1} ${currentQuestion.op} ${currentQuestion.num2} = ?`;
+        }
+
+        // Post back to parent React application
+        window.parent.postMessage({
+          type: 'LESSON_MISTAKE',
+          lessonId: gameId,
+          lessonTitle: (gameData && gameData.title) ? gameData.title : "数学大冒险",
+          gameType: gameType,
+          question: {
+            ...currentQuestion,
+            questionText: questionText,
+            explanation: explanation,
+            userAnswer: userAns,
+            timestamp: Date.now()
+          }
+        }, '*');
+
+        // Play gentle error feedback or simply auto-load next question after 1.5 seconds
+        // This keeps the user playing without being blocked by an intrusive popup modal
+        setTimeout(() => {
+          generateQuestion();
+        }, 1500);
+      }
+    }
+
+    // NEXT ROUND ROUTER
+    function nextRound() {
+      document.getElementById('feedback-modal').classList.add('hidden');
+      if (score >= requiredScore) {
+        // Victory!
+        triggerConfetti();
+        playSound('win');
+        document.getElementById('success-modal').classList.remove('hidden');
+      } else {
+        generateQuestion();
+      }
+    }
+
+    // REMEDY: 错题重做 (RETRY EXACT SAME PARAMETERS)
+    function retryCurrentQuestion() {
+      playSound('pop');
+      document.getElementById('remedy-modal').classList.add('hidden');
+      
+      // Restore previous question parameters exactly
+      currentQuestion = JSON.parse(JSON.stringify(savedBackupQuestion));
+      rebuildPreviousStage();
+    }
+
+    // REMEDY: 错题举一反三 (ANALOGY - GENERATE FRESH ANALOGOUS PROBLEM)
+    function analogyQuestion() {
+      playSound('pop');
+      document.getElementById('remedy-modal').classList.add('hidden');
+      
+      // Generate a fresh question of the same type/category
+      generateQuestion();
+    }
+
+    // Restore exact rendering for Retries
+    function rebuildPreviousStage() {
+      const stage = document.getElementById('stage-content');
+      stage.innerHTML = ''; 
+
+      const container = document.createElement('div');
+      container.className = "flex flex-col items-center justify-center w-full";
+
+      if (currentQuestion.type === 'count') {
+        // Render Count
+        const grid = document.createElement('div');
+        grid.className = "flex flex-wrap items-center justify-center gap-4 bg-emerald-50/40 p-6 rounded-3xl min-h-[140px] w-full max-w-sm mb-6 border border-emerald-100 shadow-inner";
+        for (let i = 0; i < currentQuestion.targetNum; i++) {
+          const item = document.createElement('div');
+          item.className = "text-4xl filter drop-shadow-sm select-none";
+          item.innerText = currentQuestion.itemEmoji;
+          grid.appendChild(item);
+        }
+        container.appendChild(grid);
+        const label = document.createElement('div');
+        label.className = "text-base font-extrabold text-slate-700 mb-4 text-center";
+        label.innerHTML = `重挑战此题：这里一共有几个 <span class="text-3xl">${currentQuestion.itemEmoji}</span> 呀？`;
+        container.appendChild(label);
+        renderAnswerButtons(container, currentQuestion.targetNum, currentQuestion.min, currentQuestion.max + 2);
+
+      } else if (currentQuestion.type === 'compare') {
+        // Render Compare
+        const panelsRow = document.createElement('div');
+        panelsRow.className = "flex items-center justify-center gap-3 w-full mb-6";
+        const leftBox = document.createElement('div');
+        leftBox.className = "flex-1 aspect-square max-w-[130px] bg-green-50 rounded-2xl p-3 flex flex-wrap gap-2 items-center justify-center border border-green-200 shadow-sm";
+        for (let i = 0; i < currentQuestion.numLeft; i++) {
+          const item = document.createElement('span');
+          item.innerText = currentQuestion.emojiLeft;
+          leftBox.appendChild(item);
+        }
+        const midBox = document.createElement('div');
+        midBox.className = "w-14 h-14 bg-amber-50 rounded-2xl border-4 border-dashed border-amber-300 flex items-center justify-center text-3xl font-extrabold text-amber-600 animate-pulse";
+        midBox.innerText = "?";
+        const rightBox = document.createElement('div');
+        rightBox.className = "flex-1 aspect-square max-w-[130px] bg-rose-50 rounded-2xl p-3 flex flex-wrap gap-2 items-center justify-center border border-rose-200 shadow-sm";
+        for (let i = 0; i < currentQuestion.numRight; i++) {
+          const item = document.createElement('span');
+          item.innerText = currentQuestion.emojiRight;
+          rightBox.appendChild(item);
+        }
+        panelsRow.appendChild(leftBox);
+        panelsRow.appendChild(midBox);
+        panelsRow.appendChild(rightBox);
+        container.appendChild(panelsRow);
+
+        const opsRow = document.createElement('div');
+        opsRow.className = "flex justify-center gap-4 w-full";
+        [">", "=", "<"].forEach(op => {
+          const btn = document.createElement('button');
+          btn.className = "w-16 h-16 text-3xl font-extrabold bg-[#FFF9C4] hover:bg-yellow-200 text-amber-900 border-3 border-yellow-400 rounded-full flex items-center justify-center shadow-md transition-all bounce-hover";
+          btn.innerText = op;
+          btn.onclick = () => checkAnswer(op);
+          opsRow.appendChild(btn);
+        });
+        container.appendChild(opsRow);
+
+      } else if (currentQuestion.type === 'split') {
+        // Render Split
+        const splitDiagram = document.createElement('div');
+        splitDiagram.className = "flex flex-col items-center justify-center relative w-full max-w-[260px] p-6 bg-amber-50/30 rounded-3xl border border-amber-200 mb-6";
+        const topBubble = document.createElement('div');
+        topBubble.className = "w-16 h-16 bg-[#FFE0B2] text-[#E65100] border-4 border-[#FFB74D] rounded-full text-3xl font-extrabold flex items-center justify-center shadow-md mb-8 relative z-10";
+        topBubble.innerText = currentQuestion.total;
+        splitDiagram.appendChild(topBubble);
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "absolute inset-0 w-full h-full pointer-events-none z-0");
+        svg.innerHTML = `
+          <line x1="50%" y1="25%" x2="25%" y2="65%" stroke="#FFB74D" stroke-width="4" stroke-dasharray="2,2"/>
+          <line x1="50%" y1="25%" x2="75%" y2="65%" stroke="#FFB74D" stroke-width="4" stroke-dasharray="2,2"/>
+        `;
+        splitDiagram.appendChild(svg);
+        const bottomRow = document.createElement('div');
+        bottomRow.className = "flex justify-between w-full px-4 relative z-10";
+        const leftSplit = document.createElement('div');
+        leftSplit.className = "w-14 h-14 bg-white text-slate-800 border-3 border-amber-300 rounded-full text-2xl font-bold flex items-center justify-center shadow-md";
+        leftSplit.innerText = currentQuestion.numLeft;
+        const rightSplit = document.createElement('div');
+        rightSplit.className = "w-14 h-14 bg-amber-100 text-amber-700 border-4 border-dashed border-amber-400 rounded-full text-2xl font-bold flex items-center justify-center shadow-md animate-bounce";
+        rightSplit.innerText = "?";
+        bottomRow.appendChild(leftSplit);
+        bottomRow.appendChild(rightSplit);
+        splitDiagram.appendChild(bottomRow);
+        container.appendChild(splitDiagram);
+
+        renderAnswerButtons(container, currentQuestion.answer, 1, currentQuestion.total);
+
+      } else if (currentQuestion.type === 'shape') {
+        const targetMeta = shapeDictionary[currentQuestion.targetShape];
+
+        const shapeBox = document.createElement('div');
+        shapeBox.className = `w-36 h-36 bg-gradient-to-br ${targetMeta.bg} rounded-3xl flex flex-col items-center justify-center shadow-inner mb-6 relative overflow-hidden border border-slate-200/20`;
+        
+        const icon = document.createElement('div');
+        icon.className = "text-7xl filter drop-shadow-md floating-item select-none";
+        icon.innerText = targetMeta.icon;
+        shapeBox.appendChild(icon);
+        container.appendChild(shapeBox);
+
+        const label = document.createElement('div');
+        label.className = "text-base font-extrabold text-slate-700 mb-2 text-center";
+        label.innerText = `这个漂亮的玩具是什么形状？`;
+        container.appendChild(label);
+
+        const clue = document.createElement('div');
+        clue.className = "text-xs text-slate-500 max-w-xs text-center leading-relaxed mb-6 bg-slate-50 p-2.5 rounded-xl border border-slate-100";
+        clue.innerText = `💡 宝贝别急，聪聪给你提示：${targetMeta.desc}`;
+        container.appendChild(clue);
+
+        const choicesGrid = document.createElement('div');
+        choicesGrid.className = "grid grid-cols-2 gap-3 w-full max-w-sm";
+
+        ['长方体', '正方体', '圆柱', '球'].forEach(name => {
+          const btn = document.createElement('button');
+          btn.className = `py-3 px-4 text-base font-extrabold border-2 rounded-2xl shadow-md transition-all bounce-hover bounce-active ${
+            name === targetMeta.name ? "bg-amber-50 text-amber-800 border-amber-300" : "bg-white text-slate-700 border-slate-200"
+          }`;
+          btn.innerText = name;
+          btn.onclick = () => checkAnswer(name);
+          choicesGrid.appendChild(btn);
+        });
+
+        container.appendChild(choicesGrid);
+
+      } else {
+        // Render Math equations
+        const graphics = document.createElement('div');
+        graphics.className = "flex flex-wrap items-center justify-center gap-6 mb-6 p-4 bg-yellow-50/50 rounded-2xl border border-yellow-100/50 w-full max-w-sm";
+        const leftGroup = document.createElement('div');
+        leftGroup.className = "flex flex-wrap gap-1 items-center justify-center max-w-[120px]";
+        for (let i = 0; i < (currentQuestion.num1 > 10 ? currentQuestion.num1 - 10 : currentQuestion.num1); i++) {
+          const span = document.createElement('span');
+          span.innerText = "🍬";
+          leftGroup.appendChild(span);
+        }
+        if (currentQuestion.num1 > 10) {
+          const bag = document.createElement('div');
+          bag.className = "bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-lg text-xs font-bold text-amber-800 flex items-center";
+          bag.innerHTML = `🎁 10个 + `;
+          leftGroup.insertBefore(bag, leftGroup.firstChild);
+        }
+        const rightGroup = document.createElement('div');
+        rightGroup.className = "flex flex-wrap gap-1 items-center justify-center max-w-[120px]";
+        for (let i = 0; i < currentQuestion.num2; i++) {
+          const span = document.createElement('span');
+          span.innerText = "🍬";
+          rightGroup.appendChild(span);
+        }
+        graphics.appendChild(leftGroup);
+        const opSign = document.createElement('div');
+        opSign.className = "text-2xl font-black text-amber-500";
+        opSign.innerText = currentQuestion.op;
+        graphics.appendChild(opSign);
+        graphics.appendChild(rightGroup);
+        container.appendChild(graphics);
+
+        const formula = document.createElement('div');
+        formula.className = "text-3xl lg:text-4xl font-extrabold text-[#E65100] tracking-wider mb-6 select-none flex items-center gap-2";
+        formula.innerHTML = `<span>${currentQuestion.num1}</span> <span>${currentQuestion.op}</span> <span>${currentQuestion.num2}</span> <span>=</span> <span class="w-12 h-14 bg-amber-50 border-4 border-dashed border-amber-300 rounded-xl text-3xl font-extrabold text-amber-600 flex items-center justify-center select-none animate-pulse">?</span>`;
+        container.appendChild(formula);
+
+        const selectionRow = document.createElement('div');
+        selectionRow.className = "grid grid-cols-2 gap-3 w-full max-w-sm";
+
+        const ansOptions = [currentQuestion.answer];
+        while (ansOptions.length < 4) {
+          const offset = Math.floor(Math.random() * 4) + 1;
+          const fake = currentQuestion.answer + (Math.random() > 0.5 ? offset : -offset);
+          if (fake >= 0 && fake <= 25 && !ansOptions.includes(fake)) {
+            ansOptions.push(fake);
+          }
+        }
+        ansOptions.sort((a, b) => a - b);
+
+        ansOptions.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = "py-3 px-6 text-2xl font-bold bg-[#E8F5E9] hover:bg-green-200 text-green-800 border-3 border-green-300 rounded-2xl shadow-md transition-all bounce-hover";
+          btn.innerText = opt;
+          btn.onclick = () => checkAnswer(opt);
+          selectionRow.appendChild(btn);
+        });
+        container.appendChild(selectionRow);
+      }
+
+      stage.appendChild(container);
+    }
+
+    // SKIP GAME ROUTE
+    function skipGame() {
+      playSound('pop');
+      score = requiredScore;
+      triggerConfetti();
+      playSound('win');
+      document.getElementById('success-modal').classList.remove('hidden');
+    }
+
+    // MANUAL COMPLETE ACTION
+    function parentComplete() {
+      playSound('win');
+      notifyParentAndClose();
+    }
+
+    function notifyParentAndClose() {
+      window.parent.postMessage({
+        type: 'LESSON_COMPLETE',
+        lessonId: gameId
+      }, '*');
+      document.getElementById('success-modal').classList.add('hidden');
+    }
+
+    // Confetti Canvas Particle Celebrator
+    function triggerConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      canvas.classList.remove('hidden');
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+
+      const colors = ['#FF4081', '#FFEB3B', '#00E676', '#2979FF', '#FF9100', '#D500F9'];
+      const particles = [];
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          r: Math.random() * 4 + 4,
+          d: Math.random() * canvas.height,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          tilt: Math.random() * 10 - 5,
+          tiltAngleIncremental: Math.random() * 0.07 + 0.02,
+          tiltAngle: 0
+        });
+      }
+
+      let animationFrame;
+      let counter = 0;
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+
+        particles.forEach(p => {
+          p.tiltAngle += p.tiltAngleIncremental;
+          p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+          p.x += Math.sin(p.tiltAngle);
+          p.tilt = Math.sin(p.tiltAngle - p.r / 2) * 5;
+
+          ctx.beginPath();
+          ctx.lineWidth = p.r;
+          ctx.strokeStyle = p.color;
+          ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+          ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+          ctx.stroke();
+
+          if (p.y < canvas.height) active = true;
+        });
+
+        counter++;
+        if (active && counter < 180) {
+          animationFrame = requestAnimationFrame(draw);
+        } else {
+          canvas.classList.add('hidden');
+          cancelAnimationFrame(animationFrame);
+        }
+      }
+
+      draw();
+    }
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "一年级数学提前学",
+  "description": "专为幼儿园幼儿设计的数学一年级上册提前学探险主框架与互动游戏系统。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
